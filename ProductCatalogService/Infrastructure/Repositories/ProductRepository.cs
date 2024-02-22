@@ -7,23 +7,51 @@ namespace ProductCatalogService.Infrastructure.Repositories
 {
     public class ProductRepository : IProductRepository
     {
-        public ApplicationDbContext _StoreContext;
+        public readonly ApplicationDbContext _context;
 
-        public ProductRepository(ApplicationDbContext storeContext)
+        public ProductRepository(ApplicationDbContext context)
         {
-            _StoreContext = storeContext;
-        }
-        public async Task<IReadOnlyList<Product>> GetListOfproducts()
-        {
-            return _StoreContext.Products
-                .ToList();
+            _context = context;
         }
 
-        public async Task<Product> GetProductByIdAsync(int Id)
+        public async Task<List<Product>> GetAllAsync()
         {
-            var obj = await _StoreContext.Products
-                 .FirstOrDefaultAsync(x => x.Id == Id);
-            return obj;
+            return await _context.Set<Product>().ToListAsync();
+        }
+
+        public async Task<Product?> GetAsync(int? productId)
+        {
+            if (productId == null)
+            {
+                return null;
+            }
+            return await _context.Products.FindAsync(productId);
+        }
+
+        public async Task<Product> CreateAsync(Product product)
+        {
+            await this._context.AddAsync(product);
+            await this._context.SaveChangesAsync();
+
+            return product;
+        }
+
+        public async Task UpdateAsync(Product product)
+        {
+            _context.Update(product);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteAsync(int productId)
+        {
+            var product = await GetAsync(productId);
+
+            if (product is null)
+            {
+                throw new Exception($"ProductID {productId} is not found.");
+            }
+            this._context.Set<Product>().Remove(product);
+            await _context.SaveChangesAsync();
         }
     }
 }

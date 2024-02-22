@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using ProductCatalogService.Infrastructure.Data;
 using ProductCatalogService.Core.Domain.Entities;
 using Asp.Versioning;
+using AutoMapper;
+using ProductCatalogService.Core.Business.Interfaces;
+using ProductCatalogService.Presentation.DTOs.Product;
 
 
 namespace ProductCatalogService.Presentation.Controllers
@@ -17,71 +20,83 @@ namespace ProductCatalogService.Presentation.Controllers
     [ApiController]
     public class ProductController : ControllerBase
     {
-        private readonly IApplicationDbContext _context;
+        private readonly IMapper _mapper;
+        private readonly IProductRepository _productRepository;
 
-        public ProductController(IApplicationDbContext context)
+        public ProductController(IMapper mapper, IProductRepository productRepository)
         {
-            _context = context;
+            _mapper = mapper;
+            _productRepository = productRepository;
         }
 
-        [HttpGet]
+        [HttpGet("GetAllProducts")]
         [MapToApiVersion("1.0")]
-        public async Task<IActionResult> GetAll()
+        public async Task<ActionResult<List<Product>>> GetAllProducts()
         {
-            var products = await _context.Products.ToListAsync();
-
-            return products == null ? NotFound() : Ok(products);
+            var products = await _productRepository.GetAllAsync();
+ 
+            return Ok(products);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+        [HttpGet("GetProduct")]
+        [MapToApiVersion("1.0")]
+        public async Task<ActionResult<Product>> GetProduct(int productId)
         {
-            var product = await _context.Products.Where(a => a.Id == id).FirstOrDefaultAsync();
-
-            return product == null ? NotFound() : Ok(product);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Create(Product product)
-        {
-            _context.Products.Add(product);
-            await _context.SaveChanges();
-
-            return Ok(product.Id);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, Product productData)
-        {
-            var product = _context.Products.Where(a => a.Id == id).FirstOrDefault();
+            var product = await _productRepository.GetAsync(productId);
 
             if (product == null)
-                return NotFound();
-            else
             {
-                product.CategoryId = productData.CategoryId;
-                product.Title = productData.Title;
-                product.Description = productData.Description;
-                product.Price = productData.Price;
-                product.PhotoLink = productData.PhotoLink;
-
-                await _context.SaveChanges();
-
-                return Ok(product.Id);
+                throw new Exception($"ProductID {productId} is not found.");
             }
+
+            return Ok(product);
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        [HttpPost("CreateProduct")]
+        [MapToApiVersion("1.0")]
+        public async Task<ActionResult<Product>> CreateCategory(Product product)
         {
-            var product = await _context.Products.Where(a => a.Id == id).FirstOrDefaultAsync();
 
-            if (product == null) return NotFound();
+            await _productRepository.CreateAsync(product);
 
-            _context.Products.Remove(product);
-            await _context.SaveChanges();
+            return CreatedAtAction("GetProduct", new { id = product.Id }, product);
+        }
 
-            return Ok(product.Id);
+        [HttpPut("UpdateProduct")]
+        [MapToApiVersion("1.0")]
+        public async Task<IActionResult> UpdateProduct(int productId, Product productForUpdate)
+        {
+            if (productId != productForUpdate.Id)
+            {
+                return BadRequest("Invalid Product Id");
+            }
+
+            var product = await _productRepository.GetAsync(productId);
+
+            if (product == null)
+            {
+                throw new Exception($"ProductID {productId} is not found.");
+            }
+
+            try
+            {
+                await _productRepository.UpdateAsync(productForUpdate);
+            }
+            catch (Exception)
+            {
+                throw new Exception($"Error occured while updating ProductID {productId}.");
+            }
+
+            return NoContent();
+        }
+
+        [HttpDelete("DeleteProduct")]
+        [MapToApiVersion("1.0")]
+        public async Task<IActionResult> DeleteProduct(int productId)
+        {
+            await _productRepository.DeleteAsync(productId);
+
+            return NoContent();
         }
     }
 }

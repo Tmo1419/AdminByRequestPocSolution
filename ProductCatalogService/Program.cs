@@ -5,6 +5,9 @@ using AspNetCoreRateLimit;
 using ProductCatalogService.Infrastructure.Data;
 using ProductCatalogService.Core.Domain.Entities;
 using Asp.Versioning;
+using ProductCatalogService.Core.Business.Interfaces;
+using ProductCatalogService.Infrastructure.Repositories;
+using ProductCatalogService.Presentation;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -59,7 +62,9 @@ builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounte
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
-//builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+builder.Services.AddAutoMapper(typeof(MapperConfig));
 
 
 
